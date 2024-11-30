@@ -1,35 +1,62 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePostDto } from './create-post.dto';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class PostsService {
-  private posts = [];
+  constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.posts;
+  async findAll(page: number = 1, limit: number = 10) {
+    const skip = page - 1 * limit;
+
+    const posts = await this.prisma.post.findMany({
+      skip,
+      take: limit,
+      include: {
+        author: true,
+        comments: true,
+      },
+    });
+    const totalPosts = await this.prisma.post.count();
+    const totalPages = Math.ceil(totalPosts / limit);
+    return {
+      data: posts,
+      meta: {
+        totalCount: totalPosts,
+        totalPages,
+        currentPage: page,
+      },
+    };
   }
 
   findOne(id: string) {
-    const post = this.posts.find((post) => post.id === id);
+    const post = this.prisma.post.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        author: true,
+        comments: true,
+      },
+    });
     if (!post) throw new NotFoundException(`Post with ID ${id} not found`);
     return post;
   }
 
   create(createPostDto: CreatePostDto) {
-    const newPost = { id: Date.now().toString(), ...createPostDto };
+    const newPost = this.prisma.post.create({ data: createPostDto });
     return newPost;
   }
 
   update(id: string, updatePostDto: CreatePostDto) {
-    const post = this.findOne(id);
-    Object.assign(post, updatePostDto);
-    return post;
+    const updatedPost = this.prisma.post.update({
+      where: { id },
+      data: updatePostDto,
+    });
+    return updatedPost;
   }
 
   delete(id: string) {
-    const postIndex = this.posts.findIndex((post) => post.id === id);
-    if (postIndex === -1)
-      throw new NotFoundException(`post with id ${id} not found.`);
-    return this.posts.splice(postIndex, 1);
+    return this.prisma.post.delete({ where: { id } });
   }
 }

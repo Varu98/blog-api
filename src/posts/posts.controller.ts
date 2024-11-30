@@ -6,17 +6,20 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './create-post.dto';
+import { paginationDto } from './paginationDto';
 
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postService: PostsService) {}
 
   @Get()
-  findAll() {
-    this.postService.findAll();
+  findAll(@Query() paginationDto: paginationDto) {
+    const { page, limit } = paginationDto;
+    this.postService.findAll(page, limit);
   }
 
   @Get(':id')
